@@ -41,6 +41,7 @@ DJANGO_APPS = [
 
 PROJECT_APPS = [
     'posts',
+    'accounts',
 ]
 
 THIRD_PARTY_APPS = [
@@ -143,3 +144,5 @@ def get_secret(setting, secrets=secrets):
         raise ImproperlyConfigured(error_msg)
 
 SECRET_KEY = get_secret("SECRET_KEY")
+
+AUTH_USER_MODEL = 'accounts.User'
