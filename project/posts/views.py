@@ -135,18 +135,29 @@ def post_list(request):
 
  # 게시글 전체 조회
     if request.method == "GET":
-        post_all = Post.objects.all()
+        posts = Post.objects.all()
+
+        #  카테고리 필터링
+        category_id = request.GET.get('category')
+        if category_id:
+            posts = posts.filter(categories__id = category_id)
+        
+        # 정렬 (최신 작성 순- latest) - 항상.
+        posts = posts.order_by('-created_at')
+
 
         # 각 데이터를 Json 형식으로 변환하여 리스트에 저장 (여러개의 게시글 내용을 담을 거라 리스트를 이용합니다)
         post_all_json = []
 
-        for post in post_all:
+        for post in posts:
             post_json = {
                 "id" : post.id,
                 "title" : post.title,
+                "categories": [c.name for c in post.categories.all()],
                 "content" : post.content,
                 "status" : post.status,
-                "writer" : post.writer.username
+                "writer" : post.writer.username,
+                "created_at": post.created_at
             }
             post_all_json.append(post_json)
 

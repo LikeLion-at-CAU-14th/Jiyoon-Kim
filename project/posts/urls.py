@@ -9,5 +9,5 @@ urlpatterns = [
 
     path('', post_list, name = "post_list"), # Post 생성, 전체조회
     path('<int:post_id>/', post_detail, name = "post_detail"), # Post 단일조회, 수정, 삭제
-    path('posts/<int:post_id>/comments/', get_post_comments, name = "post_comments") # Post의 댓글 조회
+    path('<int:post_id>/comments/', get_post_comments, name = "post_comments") # Post의 댓글 조회
 ]
