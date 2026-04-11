@@ -54,6 +54,7 @@ INSTALLED_APPS = DJANGO_APPS + PROJECT_APPS + THIRD_PARTY_APPS
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', # 반드시 가장 위쪽에 추가
+    'config.middleware.RequestLoggingMiddleware', # 커스텀 미들웨어 추가
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -161,3 +162,39 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    # 로그 형식 정의 (시간, 로그레벨, URL 포함)
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] [{levelname}] {message}',
+            'style': '{',
+        },
+    },
+
+    # 핸들러 - 어디에 로그를 출력할지
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'class': 'logging.FileHandler',
+            'filename': 'errors.log',
+            'level': 'WARNING',       # warning 이상만 저장
+            'formatter': 'verbose',
+        },
+    },
+
+    # 실제 로거 설정
+    'loggers': {
+        'django.request.custom': {
+            'handlers': ['console', 'error_file'],
+            'level': 'INFO',          # INFO 이상 모두 로깅
+            'propagate': False,
+        },
+    },
+}
