@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -46,12 +46,15 @@ PROJECT_APPS = [
 
 THIRD_PARTY_APPS = [
 
+ "corsheaders",
 ]
 
 
 INSTALLED_APPS = DJANGO_APPS + PROJECT_APPS + THIRD_PARTY_APPS
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', # 반드시 가장 위쪽에 추가
+    'config.middleware.RequestLoggingMiddleware', # 커스텀 미들웨어 추가
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -146,3 +149,52 @@ def get_secret(setting, secrets=secrets):
 SECRET_KEY = get_secret("SECRET_KEY")
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# 인증 관련 요청(쿠키, 세션 등)을 허용
+# 예를 들어 브라우저가 백엔드 서버로 쿠키를 전송하거나, 백엔드에서 쿠키를 응답으로 보낼 수 있음
+CORS_ALLOW_CREDENTIALS = True
+
+# 서버로 요청 보낼 수 있는 도메인들 정의
+# 여기에서의 localhost는 EC2 인스턴스의 로컬환경이 아니라 프론트엔드 개발 로컬 환경 의미
+# 3000 포트는 프론트엔드 React 애플리케이션의 포트 번호
+# 추후 프론트엔드에서 웹 페이지 배포 후 도메인 매핑했다면 해당 도메인 추가 필요
+CORS_ALLOWED_ORIGINS = [ 
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    # 로그 형식 정의 (시간, 로그레벨, URL 포함)
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] [{levelname}] {message}',
+            'style': '{',
+        },
+    },
+
+    # 핸들러 - 어디에 로그를 출력할지
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'class': 'logging.FileHandler',
+            'filename': 'errors.log',
+            'level': 'WARNING',       # warning 이상만 저장
+            'formatter': 'verbose',
+        },
+    },
+
+    # 실제 로거 설정
+    'loggers': {
+        'django.request.custom': {
+            'handlers': ['console', 'error_file'],
+            'level': 'INFO',          # INFO 이상 모두 로깅
+            'propagate': False,
+        },
+    },
+}
