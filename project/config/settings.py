@@ -181,10 +181,10 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-        'error_file': {
+        'log_file': {
             'class': 'logging.FileHandler',
-            'filename': 'errors.log',
-            'level': 'WARNING',       # warning 이상만 저장
+            'filename': BASE_DIR / 'requests.log',
+            'level': 'DEBUG',       # debug 이상만 저장
             'formatter': 'verbose',
         },
     },
@@ -192,8 +192,8 @@ LOGGING = {
     # 실제 로거 설정
     'loggers': {
         'django.request.custom': {
-            'handlers': ['console', 'error_file'],
-            'level': 'INFO',          # INFO 이상 모두 로깅
+            'handlers': ['console', 'log_file'],
+            'level': 'DEBUG',          # DEBUG 이상 모두 로깅
             'propagate': False,
         },
     },

@@ -8,7 +8,7 @@ class RequestLoggingMiddleware:
 
     def __call__(self, request):
         # 요청 로깅
-        logger.info(f"요청 URL: {request.path} | Method: {request.method}")
+        logger.info(f"요청 URL: {request.get_full_path()} | Method: {request.method}")
         
         response = self.get_response(request)
         
