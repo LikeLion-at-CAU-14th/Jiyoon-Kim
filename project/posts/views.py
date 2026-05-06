@@ -6,6 +6,15 @@ from .models import *
 
 import json
 
+
+### DRF 관련 import - APIView 사용
+from .serializers import *
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import Http404
+
 # Create your views here.
 
 # 게시글 단일조회(GET), 수정(PATCH) 로직, 삭제(DELETE) 로직
@@ -188,3 +197,87 @@ def get_post_comments(request, post_id):
         'message' : '게시글 댓글 조회 성공',
         "data": comments_json
     })
+
+
+### DRF - APIView 사용
+
+class PostList(APIView):
+    def post(self, request, format=None):
+        serializer = PostSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request, format=None):
+        posts = Post.objects.all()
+        serializer = PostSerializer(posts, many=True)
+        return Response(serializer.data)
+    
+class PostDetail(APIView):
+    def get(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        serializer = PostSerializer(post)
+        return Response(serializer.data)
+    
+    def put(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        serializer = PostSerializer(post, data=request.data)
+        if serializer.is_valid(): # update이니까 유효성 검사 필요
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        post.delete()
+        return Response(
+            {
+                "message": "게시글이 성공적으로 삭제되었습니다.",
+                "post_id": post_id  
+            },
+            status=status.HTTP_200_OK
+        )
+    
+# 댓글 생성, 조회
+class CommentList(APIView):
+
+		# 게시글에 댓글 생성 (POST)
+    def post(self, request, post_id):
+        post = get_object_or_404(Post, pk=post_id)
+        serializer = CommentSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            user_id = request.data.get('writer')
+            user = get_object_or_404(User, pk=user_id)
+            serializer.save(writer=user, post=post)
+            return Response({
+                "status": 201,
+                "message": "댓글 생성 성공",
+                "data": serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    # 게시글의 모든 댓글 조회 (GET)
+    def get(self, request, post_id):
+        post = get_object_or_404(Post, pk=post_id)
+        comments = post.comments.all().prefetch_related('writer')
+        serializer = CommentSerializer(comments, many=True)
+        return Response({
+            "status": 200,
+            "message": "게시글 댓글 조회 성공",
+            "data": serializer.data
+        })
+    
+
+# 댓글 삭제
+class CommentDetail(APIView):
+    def delete(self, request, comment_id):
+        comment = get_object_or_404(Comment, pk=comment_id)
+        comment.delete()
+        return Response({
+            "status": 200,
+            "message": "댓글 삭제 성공",
+            "data": None
+            }, status=status.HTTP_200_OK)
