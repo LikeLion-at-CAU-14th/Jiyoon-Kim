@@ -15,8 +15,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.http import Http404
 
+from rest_framework.permissions import IsAuthenticatedOrReadOnly # jwt 세션
+from config.permissions import IsAllowedTime, IsOwnerOrReadOnly  #custom permissions
+
 # Create your views here.
 
+# FBV - 함수 기반 뷰
+"""
 # 게시글 단일조회(GET), 수정(PATCH) 로직, 삭제(DELETE) 로직
 @require_http_methods(["GET","PATCH","DELETE"])
 def post_detail(request, post_id):
@@ -197,8 +202,8 @@ def get_post_comments(request, post_id):
         'message' : '게시글 댓글 조회 성공',
         "data": comments_json
     })
-
-
+"""
+# CBV - 클래스 기반 뷰
 ### DRF - APIView 사용
 
 class PostList(APIView):
@@ -215,26 +220,31 @@ class PostList(APIView):
         return Response(serializer.data)
     
 class PostDetail(APIView):
-    def get(self, request, post_id):
+   # permission_classes = [IsAuthenticatedOrReadOnly]
+   permission_classes = [IsAllowedTime, IsOwnerOrReadOnly]
+   
+   def get(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         serializer = PostSerializer(post)
         return Response(serializer.data)
-    
-    def put(self, request, post_id):
+   
+   def put(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
+        self.check_object_permissions(request, post)    # 수정 권한 체크
         serializer = PostSerializer(post, data=request.data)
-        if serializer.is_valid(): # update이니까 유효성 검사 필요
+        if serializer.is_valid():   # update이니까 유효성 검사 필요
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, post_id):
+   
+   def delete(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
+        self.check_object_permissions(request, post)   # 삭제 권한 체크
         post.delete()
         return Response(
             {
                 "message": "게시글이 성공적으로 삭제되었습니다.",
-                "post_id": post_id  
+                "post_id": post_id
             },
             status=status.HTTP_200_OK
         )
