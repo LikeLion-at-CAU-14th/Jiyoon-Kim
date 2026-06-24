@@ -38,6 +38,7 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
 ]
 
 PROJECT_APPS = [
@@ -50,6 +51,12 @@ THIRD_PARTY_APPS = [
  "corsheaders",
  "rest_framework",
  "rest_framework_simplejwt",
+ "allauth",
+ "allauth.account",
+ "allauth.socialaccount",
+ "allauth.socialaccount.providers.google",
+ # "allauth.socialaccount.providers.{제공_업체}" 찾아서 사용 가능
+ "allauth.socialaccount.providers.kakao", 
 ]
 
 
@@ -65,6 +72,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -218,3 +226,15 @@ SIMPLE_JWT = { # JWT 세부내용 설정
     'BLACKLIST_AFTER_ROTATION': False,
     'TOKEN_USER_CLASS': 'accounts.User',
 }
+
+
+ACCOUNT_LOGIN_METHODS = {'email'}                  # 로그인 방식 설정
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*']    # 회원가입 시 필수 입력 필드 설정
+
+
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = ( # 인증 방식 설정
+    'django.contrib.auth.backends.ModelBackend', # Django 기본 인증 방식
+    'allauth.account.auth_backends.AuthenticationBackend', # allauth 인증 방식
+)
