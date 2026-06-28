@@ -28,6 +28,23 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# secret key를 secrets.json에서 가져오도록 설정
+secret_file = os.path.join(BASE_DIR, 'secrets.json') 
+
+with open(secret_file, encoding='utf-8') as f:
+    secrets = json.loads(f.read())
+
+def get_secret(setting, secrets=secrets): 
+# secret 변수를 가져오거나 그렇지 못 하면 예외를 반환
+    try:
+        return secrets[setting]
+    except KeyError:
+        error_msg = "Set the {} environment variable".format(setting)
+        raise ImproperlyConfigured(error_msg)
+
+SECRET_KEY = get_secret("SECRET_KEY")
+
+
 
 # Application definition
 
@@ -57,6 +74,8 @@ THIRD_PARTY_APPS = [
  "allauth.socialaccount.providers.google",
  # "allauth.socialaccount.providers.{제공_업체}" 찾아서 사용 가능
  "allauth.socialaccount.providers.kakao", 
+ 'storages',
+ 'drf_yasg',
 ]
 
 
@@ -99,11 +118,29 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+        'default': {
+		'ENGINE': 'django.db.backends.mysql',
+		'NAME': 'likelion14th', # likelion14th
+		'USER': get_secret("DB_USER"), 
+		'PASSWORD': get_secret("DB_PW"), 
+		'HOST': get_secret("DB_HOST"),
+		'PORT': get_secret("DB_PORT"),
+	}
 }
+
+# ssh 터널링을 사용하지 않고 직접 RDS에 연결할 경우
+'''
+DATABASES = {
+    'default': {
+		'ENGINE': 'django.db.backends.mysql',
+		'NAME': 'likelion14th',
+		'USER': 'admin', 
+		'PASSWORD': 'likelion14th*', 
+		'HOST': 'likelion14th.cb8qw4o4e2di.ap-northeast-2.rds.amazonaws.com',
+		'PORT': '3306',
+	}
+}
+'''
 
 
 # Password validation
@@ -130,7 +167,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
@@ -141,23 +178,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
-
-# secret key를 secrets.json에서 가져오도록 설정
-secret_file = os.path.join(BASE_DIR, 'secrets.json') 
-
-with open(secret_file) as f:
-    secrets = json.loads(f.read())
-
-def get_secret(setting, secrets=secrets): 
-# secret 변수를 가져오거나 그렇지 못 하면 예외를 반환
-    try:
-        return secrets[setting]
-    except KeyError:
-        error_msg = "Set the {} environment variable".format(setting)
-        raise ImproperlyConfigured(error_msg)
-
-SECRET_KEY = get_secret("SECRET_KEY")
 
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -238,3 +258,30 @@ AUTHENTICATION_BACKENDS = ( # 인증 방식 설정
     'django.contrib.auth.backends.ModelBackend', # Django 기본 인증 방식
     'allauth.account.auth_backends.AuthenticationBackend', # allauth 인증 방식
 )
+
+### AWS ###
+# IAM 사용자 관련 정보
+# accessKeys.csv 파일에 있는 내용을 입력 해주세요
+AWS_ACCESS_KEY_ID = get_secret("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = get_secret("AWS_SECRET_ACCESS_KEY")
+AWS_REGION = "ap-northeast-2" # 서울 리전
+
+### S3 ###
+AWS_STORAGE_BUCKET_NAME = "likelion14th-s3-j"
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com"
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+
+
+# drf-yasg (Swagger) 설정: Swagger UI에서 Bearer 토큰으로 인증 가능하도록 함
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}

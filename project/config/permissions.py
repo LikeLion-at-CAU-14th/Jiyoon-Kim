@@ -5,6 +5,7 @@ class IsAllowedTime(BasePermission):
     
     def has_permission(self, request, view):
         hour = datetime.now().hour
+        print("현재 시간:", hour)
         if 22 <= hour or hour < 7:        # 밤 10시 ~ 아침 7시 사용 권한 제한
             return False
         return True
