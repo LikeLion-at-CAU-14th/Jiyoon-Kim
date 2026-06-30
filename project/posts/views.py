@@ -18,6 +18,17 @@ from django.http import Http404
 from rest_framework.permissions import IsAuthenticatedOrReadOnly # jwt 세션
 from config.permissions import IsAllowedTime, IsOwnerOrReadOnly  #custom permissions
 
+from django.core.files.storage import default_storage  
+from .serializers import ImageSerializer
+from django.conf import settings
+import boto3
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+import uuid
+from rest_framework.parsers import MultiPartParser, FormParser
+
 # Create your views here.
 
 # FBV - 함수 기반 뷰
@@ -207,12 +218,28 @@ def get_post_comments(request, post_id):
 ### DRF - APIView 사용
 
 class PostList(APIView):
+
+    permission_classes = [IsAllowedTime, IsOwnerOrReadOnly]
+
+    @swagger_auto_schema(
+            operation_summary="게시글 생성",
+            operation_description="새로운 게시글을 생성합니다.",
+            request_body=PostSerializer,  # 요청 데이터의 스키마 정의
+            responses={201: PostSerializer, 400: "잘못된 요청"},  # 응답 데이터의 스키마 정의
+    )
+
     def post(self, request, format=None):
         serializer = PostSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @swagger_auto_schema(
+        operation_summary="게시글 목록 조회",
+        operation_description="모든 게시글을 조회합니다.",
+        responses={200: PostSerializer(many=True)}
+    )
     
     def get(self, request, format=None):
         posts = Post.objects.all()
@@ -223,11 +250,24 @@ class PostDetail(APIView):
    # permission_classes = [IsAuthenticatedOrReadOnly]
    permission_classes = [IsAllowedTime, IsOwnerOrReadOnly]
    
+   @swagger_auto_schema(
+        operation_summary="게시글 상세 조회",
+        operation_description="특정 게시글의 상세 정보를 조회합니다.",
+        responses={200: PostSerializer}
+    )
+    
    def get(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         serializer = PostSerializer(post)
         return Response(serializer.data)
    
+   @swagger_auto_schema(
+        operation_summary="게시글 수정",
+        operation_description="특정 게시글을 수정합니다.",
+        request_body=PostSerializer,
+        responses={200: PostSerializer, 400: "잘못된 요청"}
+    )
+
    def put(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         self.check_object_permissions(request, post)    # 수정 권한 체크
@@ -237,6 +277,11 @@ class PostDetail(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
    
+   @swagger_auto_schema(
+        operation_summary="게시글 삭제",
+        operation_description="특정 게시글을 삭제합니다.",
+        responses={200: "게시글 삭제 성공"}
+    )
    def delete(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         self.check_object_permissions(request, post)   # 삭제 권한 체크
@@ -251,6 +296,14 @@ class PostDetail(APIView):
     
 # 댓글 생성, 조회
 class CommentList(APIView):
+
+    # permission_classes = [IsAllowedTime, IsOwnerOrReadOnly]
+    @swagger_auto_schema(
+        operation_summary="댓글 생성",
+        operation_description="특정 게시글에 댓글을 생성합니다.",
+        request_body=CommentSerializer,
+        responses={201: CommentSerializer, 400: "잘못된 요청"}
+    )
 
 		# 게시글에 댓글 생성 (POST)
     def post(self, request, post_id):
@@ -268,7 +321,13 @@ class CommentList(APIView):
             }, status=status.HTTP_201_CREATED)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
+    @swagger_auto_schema(
+        operation_summary="댓글 조회",
+        operation_description="특정 게시글의 모든 댓글을 조회합니다.",
+        responses={200: CommentSerializer}
+    )
+
     # 게시글의 모든 댓글 조회 (GET)
     def get(self, request, post_id):
         post = get_object_or_404(Post, pk=post_id)
@@ -283,6 +342,11 @@ class CommentList(APIView):
 
 # 댓글 삭제
 class CommentDetail(APIView):
+    @swagger_auto_schema(
+        operation_summary="댓글 삭제",
+        operation_description="특정 댓글을 삭제합니다.",
+        responses={200: "댓글 삭제 성공"}
+    )
     def delete(self, request, comment_id):
         comment = get_object_or_404(Comment, pk=comment_id)
         comment.delete()
@@ -291,3 +355,63 @@ class CommentDetail(APIView):
             "message": "댓글 삭제 성공",
             "data": None
             }, status=status.HTTP_200_OK)
+    
+
+
+class ImageUploadView(APIView):
+
+    # permission_classes = [IsAuthenticatedOrReadOnly]
+
+    parser_classes = (MultiPartParser, FormParser)
+
+    @swagger_auto_schema(
+        operation_summary="이미지 업로드",
+        operation_description="이미지를 업로드하고 S3에 저장합니다.",
+        manual_parameters=[
+            openapi.Parameter(
+                'image', openapi.IN_FORM, description="Upload a file",
+                type=openapi.TYPE_FILE, required=True),
+        ],
+
+        responses={201: ImageSerializer, 400: "잘못된 요청"}
+    )
+    
+    def post(self, request):
+        if 'image' not in request.FILES:
+            return Response({"error": "No image file"}, status=status.HTTP_400_BAD_REQUEST)
+
+        image_file = request.FILES['image']
+
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
+        )
+
+        # S3에 파일 저장
+        unique_filename = f"{uuid.uuid4()}_{image_file.name}"
+        file_path = f"uploads/{unique_filename}"
+        # S3에 파일 업로드
+        try:
+            s3_client.put_object(
+                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                Key=file_path,
+                Body=image_file.read(),
+                ContentType=image_file.content_type,
+            )
+        except Exception as e:
+            return Response({"error": f"S3 Upload Failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 업로드된 파일의 URL 생성
+        image_url = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{file_path}"
+        
+        # DB에 저장
+        image_instance = Image.objects.create(image_url=image_url)
+        serializer = ImageSerializer(image_instance)
+
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+
+
