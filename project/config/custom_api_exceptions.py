@@ -27,3 +27,8 @@ class CommentMinimumLengthException(BaseCustomAPIException):
     status_code = 400
     default_detail = "The provided comment does not meet the minimum length requirement."
     default_code = "MINIMUM-LENGTH"
+
+class DailyPostLimitException(BaseCustomAPIException):
+    status_code = 400
+    default_detail = "You can only upload one post per day."
+    default_code = "DAILY-POST-LIMIT"
