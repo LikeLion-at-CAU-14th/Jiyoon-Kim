@@ -5,7 +5,7 @@ from .models import Post
 from .models import Comment
 from .models import *
 
-from config.custom_api_exceptions import PostConflictException
+from config.custom_api_exceptions import *
 
 class PostSerializer(serializers.ModelSerializer):
 
@@ -26,6 +26,12 @@ class CommentSerializer(serializers.ModelSerializer):
   class Meta:
     model = Comment
     fields = "__all__"
+
+# 댓글 content 필드 최소 길이 검증
+  def validate_content(self, value):
+    if len(value) < 15:
+      raise CommentMinimumLengthException( detail="The provided comment does not meet the minimum length requirement of 15 characters.")
+    return value
 
 
 class ImageSerializer(serializers.ModelSerializer):

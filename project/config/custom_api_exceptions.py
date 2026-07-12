@@ -22,3 +22,8 @@ class ConflictException(BaseCustomAPIException):
 class PostConflictException(ConflictException):
     default_detail = "A conflict occurred with the post."
     default_code = "POST-CONFLICT"
+
+class CommentMinimumLengthException(BaseCustomAPIException):
+    status_code = 400
+    default_detail = "The provided comment does not meet the minimum length requirement."
+    default_code = "MINIMUM-LENGTH"
