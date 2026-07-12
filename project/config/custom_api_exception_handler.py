@@ -12,7 +12,8 @@ def custom_api_exception_handler(exc, context):
 def _create_unified_response(response):
     error_detail = _extract_error_detail(response.data)
 
-    return {
+    # 기본 응답 형식
+    unified_response = {
         'success': False,
         'error': {
             'code': error_detail.get('code', 'DRF-API-ERROR'),
@@ -20,6 +21,15 @@ def _create_unified_response(response):
             'status_code': response.status_code,
         }
     }
+
+    # 필드별 오류 상세 정보 추가
+    if 'errors' in error_detail:
+        unified_response['error']['errors'] = error_detail['errors']
+        
+    if 'field_details' in error_detail:
+        unified_response['error']['field_details'] = error_detail['field_details']
+
+    return unified_response
 
 def _extract_error_detail(error_data):
     if isinstance(error_data, str):
